@@ -139,7 +139,7 @@ function PublicReportCard({ report, isConnected }: { report: Report; isConnected
       }
 
       if (!import.meta.env.VITE_COVERT_PROTOCOL_ADDRESS) {
-        // Dev mode fallback
+        // Dev mode fallback — no contract deployed at all
         await new Promise(r => setTimeout(r, 1000));
         if (action === 'support') {
           setLocalSupports(s => s + 1);
@@ -150,26 +150,38 @@ function PublicReportCard({ report, isConnected }: { report: Report; isConnected
         }
         setHasActed(action);
       } else {
-        // Find the on-chain report ID from the commitment hash
-        const reportId = await protocolService.getReportIdByHash(report.commitmentHash);
-        if (reportId === null) {
-          toast.error('Report not found on-chain — cannot stake');
-          return;
-        }
+        // Try to find the on-chain report ID from the commitment hash
+        let reportId: number | null = null;
+        try {
+          reportId = await protocolService.getReportIdByHash(report.commitmentHash);
+        } catch { /* contract call failed — treat as not found */ }
 
-        const reasonHash = ethers.keccak256(
-          ethers.toUtf8Bytes(`${action}:${report.commitmentHash}:${Date.now()}`)
-        );
-        if (action === 'support') {
-          await protocolService.supportReport(reportId, reasonHash);
-          setLocalSupports(s => s + 1);
-          toast.success('Support staked on-chain (1 COV)');
+        if (reportId === null) {
+          // Report not on-chain (submitted in dev-mode) — simulate locally
+          await new Promise(r => setTimeout(r, 500));
+          if (action === 'support') {
+            setLocalSupports(s => s + 1);
+            toast.success('Support recorded (Dev Mode)');
+          } else {
+            setLocalChallenges(c => c + 1);
+            toast.success('Challenge recorded (Dev Mode)');
+          }
+          setHasActed(action);
         } else {
-          await protocolService.challengeReport(reportId, reasonHash);
-          setLocalChallenges(c => c + 1);
-          toast.success('Challenge staked on-chain (3 COV)');
+          const reasonHash = ethers.keccak256(
+            ethers.toUtf8Bytes(`${action}:${report.commitmentHash}:${Date.now()}`)
+          );
+          if (action === 'support') {
+            await protocolService.supportReport(reportId, reasonHash);
+            setLocalSupports(s => s + 1);
+            toast.success('Support staked on-chain (1 COV)');
+          } else {
+            await protocolService.challengeReport(reportId, reasonHash);
+            setLocalChallenges(c => c + 1);
+            toast.success('Challenge staked on-chain (3 COV)');
+          }
+          setHasActed(action);
         }
-        setHasActed(action);
       }
 
       // Sync updated balance after successful stake

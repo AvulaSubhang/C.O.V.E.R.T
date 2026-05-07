@@ -150,8 +150,16 @@ export function EvidenceViewer({ contentHash, cid, visibility }: EvidenceViewerP
             // 2. Fetch encrypted blob from IPFS
             let blob: EncryptedReportBlob;
             try {
+                // Dev-mode reports have fake CIDs that don't exist on real gateways
+                if (cid.startsWith('bafyDEV') || cid.startsWith('QmDEV')) {
+                    throw new Error('dev-cid');
+                }
                 blob = await ipfsService.retrieve(cid);
-            } catch {
+            } catch (e) {
+                const isDevCid = cid.startsWith('bafyDEV') || cid.startsWith('QmDEV');
+                if (isDevCid) {
+                    throw new Error('This report was submitted in development mode with a simulated IPFS CID. Evidence files are stored locally and are not available on the public gateway.');
+                }
                 throw new Error(`Could not fetch evidence from IPFS (CID: ${cid.slice(0, 20)}…). The file may not be pinned on a reachable gateway.`);
             }
 
