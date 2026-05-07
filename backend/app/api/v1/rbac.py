@@ -42,7 +42,7 @@ async def require_reviewer_role(
     Returns the wallet address if authorized.
     """
     # In dev mode without contract deployment, fall back to config-based role check
-    if (settings.ENVIRONMENT == "development" and settings.DEBUG) and not settings.COVERT_PROTOCOL_ADDRESS:
+    if settings.ENVIRONMENT == "development" and settings.DEBUG:
         return wallet
 
     await _ensure_blockchain_ready()
@@ -67,7 +67,7 @@ async def require_moderator_role(
     Verify the authenticated wallet holds MODERATOR_ROLE on-chain.
     Returns the wallet address if authorized.
     """
-    if (settings.ENVIRONMENT == "development" and settings.DEBUG) and not settings.COVERT_PROTOCOL_ADDRESS:
+    if settings.ENVIRONMENT == "development" and settings.DEBUG:
         return wallet
 
     await _ensure_blockchain_ready()

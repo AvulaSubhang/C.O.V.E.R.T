@@ -54,7 +54,7 @@ class DMSService:
                 select(Report).where(
                     and_(
                         Report.id == report_id,
-                        Report.reporter_nullifier == reporter_nullifier
+                        func.lower(Report.reporter_nullifier) == reporter_nullifier.lower()
                     )
                 )
             )
@@ -130,7 +130,7 @@ class DMSService:
                 select(DeadMansSwitch).where(
                     and_(
                         DeadMansSwitch.id == dms_id,
-                        DeadMansSwitch.reporter_nullifier == reporter_nullifier,
+                        func.lower(DeadMansSwitch.reporter_nullifier) == reporter_nullifier.lower(),
                         DeadMansSwitch.status == DMSStatus.ACTIVE
                     )
                 )
@@ -210,7 +210,7 @@ class DMSService:
                 select(DeadMansSwitch).where(
                     and_(
                         DeadMansSwitch.id == dms_id,
-                        DeadMansSwitch.reporter_nullifier == reporter_nullifier
+                        func.lower(DeadMansSwitch.reporter_nullifier) == reporter_nullifier.lower()
                     )
                 )
             )
@@ -270,7 +270,7 @@ class DMSService:
         try:
             result = await db.execute(
                 select(DeadMansSwitch).where(
-                    DeadMansSwitch.reporter_nullifier == reporter_nullifier
+                    func.lower(DeadMansSwitch.reporter_nullifier) == reporter_nullifier.lower()
                 ).order_by(DeadMansSwitch.created_at.desc())
             )
             return list(result.scalars().all())
