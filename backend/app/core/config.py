@@ -32,20 +32,20 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # ===== IPFS =====
-    IPFS_API_URL: str = "/ip4/127.0.0.1/tcp/5001"
-    IPFS_GATEWAY_URL: str = "http://localhost:8080"
-    PINATA_API_KEY: str = ""
-    PINATA_SECRET_KEY: str = ""
+    IPFS_API_URL: str = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+    IPFS_GATEWAY_URL: str = "https://gateway.pinata.cloud"
+    PINATA_API_KEY: str = "9fcc6f3c8188c2e741b3"
+    PINATA_SECRET_KEY: str = "03984567a6849a7e820618c612a7e77607023c936896cb572732834f5a66f968"
     WEB3_STORAGE_TOKEN: str = ""
 
     # ===== Blockchain =====
-    RPC_URL: str = "http://localhost:8545"
-    CHAIN_ID: int = 31337  # Local Anvil
-    COMMITMENT_REGISTRY_ADDRESS: str = ""
-    DAILY_ANCHOR_ADDRESS: str = ""
-    COV_CREDITS_ADDRESS: str = ""
-    COVERT_BADGES_ADDRESS: str = ""
-    COVERT_PROTOCOL_ADDRESS: str = ""
+    RPC_URL: str = "https://sepolia.base.org"
+    CHAIN_ID: int = 84532  # Base Sepolia
+    COMMITMENT_REGISTRY_ADDRESS: str = "0x6da91E0248E1177A472C7Ec905493f4ddaF9c0F3"
+    DAILY_ANCHOR_ADDRESS: str = "0x7E10Bc04DbC2A48e6a8F54Dc488Aa6da6755d223"
+    COV_CREDITS_ADDRESS: str = "0x7b96Ea73892baE3a3c875b2701F2D1A3031F3159"
+    COVERT_BADGES_ADDRESS: str = "0x171656f685c21EE56c5db5a264503B93B714a95a"
+    COVERT_PROTOCOL_ADDRESS: str = "0x1C90D50Be7661Dc48106527F1657b8D8F12b5F60"
     AUTOMATION_PRIVATE_KEY: str = ""  # Private key for AUTOMATION_ROLE signer (reviewer role management)
 
     # ===== Rate Limiting =====
@@ -82,9 +82,15 @@ class Settings(BaseSettings):
         else:
             origins = list(v)
         # Always include the production frontend
-        vercel = "https://frontend-xi-ecru-10.vercel.app"
-        if vercel not in origins:
-            origins.append(vercel)
+        vercel_default = "https://frontend-xi-ecru-10.vercel.app"
+        vercel_custom = "https://covert-protocol.vercel.app"
+        vercel_new = "https://covert-49.vercel.app"
+        if vercel_default not in origins:
+            origins.append(vercel_default)
+        if vercel_custom not in origins:
+            origins.append(vercel_custom)
+        if vercel_new not in origins:
+            origins.append(vercel_new)
         return origins
 
     @validator("DATABASE_URL", pre=True)
