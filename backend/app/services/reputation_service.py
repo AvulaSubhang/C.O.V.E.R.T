@@ -63,6 +63,9 @@ APPEAL_REP_DELTA: Dict[str, int] = {
     'APPEAL_ABUSIVE': -5,
 }
 
+# ── Moderator rep deltas ──────────────────────────────────────────────────────
+MODERATOR_FINALIZATION_REWARD = 2
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 SLASH_PENALTY       = -5   # Additional rep loss per slashing event (spec §5)
 MALICIOUS_PENALTY   = -5   # Rep penalty for explicit malicious flag (spec §4)
@@ -217,6 +220,7 @@ class ReputationService:
         supporters: List[str],
         challengers: List[str],
         malicious_set: Set[str],
+        moderator: Optional[str] = None,
     ) -> None:
         """
         Apply rep changes to all report participants when a report is finalized.
@@ -230,7 +234,12 @@ class ReputationService:
             supporters:     List of wallet addresses that staked in support.
             challengers:    List of wallet addresses that challenged the report.
             malicious_set:  Wallets explicitly marked malicious by a moderator.
+            moderator:      Wallet address of the moderator finalizing the report.
         """
+
+        # ── Moderator ─────────────────────────────────────────────────────────
+        if moderator:
+            await self._apply_delta(db, moderator, MODERATOR_FINALIZATION_REWARD)
 
         # ── Reporter ──────────────────────────────────────────────────────────
         r_delta   = REPORTER_REP_DELTA.get(final_label, 0)

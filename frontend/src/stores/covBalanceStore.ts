@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { isModeratorAddress } from '@/config/roles';
 
 export const STAKE_AMOUNTS = {
   private: 6,
@@ -59,9 +60,20 @@ export const useCovBalanceStore = create<CovBalanceState>()(
       balances: {},
 
       getBalance: (address: string) => {
-        const key = address.toLowerCase();
-        const stored = get().balances[key];
-        return stored !== undefined ? stored : INITIAL_BALANCE;
+        const lowerAddress = address.toLowerCase();
+        const current = get().balances[lowerAddress];
+        if (current === undefined) {
+          // Initialize with default balance (90 for moderators, 30 for regular users)
+          const initial = isModeratorAddress(lowerAddress) ? 90 : INITIAL_BALANCE;
+          // Use setTimeout to avoid updating state during render if called during render
+          setTimeout(() => {
+            set((state) => ({
+              balances: { ...state.balances, [lowerAddress]: initial }
+            }));
+          }, 0);
+          return initial;
+        }
+        return current;
       },
 
       deductStake: (address: string, visibility: VisibilityKey) => {

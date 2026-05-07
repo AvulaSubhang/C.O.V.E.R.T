@@ -7,7 +7,7 @@ Endpoints for DMS configuration, check-in, and release
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from app.core.database import get_db
@@ -58,7 +58,7 @@ async def create_dms(
     """
     try:
         # Validate trigger date is in future
-        if request.trigger_date <= datetime.utcnow():
+        if request.trigger_date <= datetime.now(timezone.utc):
             raise HTTPException(status_code=400, detail="Trigger date must be in the future")
 
         # Create DMS
@@ -129,7 +129,7 @@ async def check_in(
             raise HTTPException(status_code=404, detail="DMS not found")
 
         # Calculate days until trigger
-        days_until = (dms.trigger_date - datetime.utcnow()).days
+        days_until = (dms.trigger_date - datetime.now(timezone.utc)).days
 
         return DMSCheckInResponse(
             success=True,
@@ -239,7 +239,7 @@ async def cancel_dms(
         return DMSCancelResponse(
             success=True,
             dms_id=request.dms_id,
-            cancelled_at=datetime.utcnow(),
+            cancelled_at=datetime.now(timezone.utc),
             message="DMS cancelled successfully"
         )
 
@@ -287,7 +287,7 @@ async def emergency_override(
             success=True,
             dms_id=request.dms_id,
             action=request.override_action,
-            override_at=datetime.utcnow(),
+            override_at=datetime.now(timezone.utc),
             override_by=request.admin_wallet
         )
 
@@ -318,7 +318,7 @@ async def get_dms_status(
             raise HTTPException(status_code=404, detail="DMS not found")
 
         # Calculate days until trigger
-        days_until = (dms.trigger_date - datetime.utcnow()).days
+        days_until = (dms.trigger_date - datetime.now(timezone.utc)).days
 
         return DMSStatusResponse(
             id=str(dms.id),
@@ -407,7 +407,7 @@ async def get_watchdog_status(
         return WatchdogStatusResponse(
             service_name=status.get('service_name', 'dms_watchdog'),
             is_active=status.get('is_active', False),
-            last_heartbeat=status.get('last_heartbeat', datetime.utcnow()),
+            last_heartbeat=status.get('last_heartbeat', datetime.now(timezone.utc)),
             total_checks=status.get('total_checks', 0),
             triggers_found=status.get('triggers_found', 0),
             releases_attempted=status.get('releases_attempted', 0),

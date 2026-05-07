@@ -2,22 +2,24 @@
 C.O.V.E.R.T - Reports API Endpoints
 """
 
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+# pyrefly: ignore [missing-import]
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+# pyrefly: ignore [missing-import]
+from sqlalchemy import select
 from typing import Optional, List
-from datetime import datetime
-from uuid import UUID
 import logging
 
 logger = logging.getLogger(__name__)
 
 # keccak256 for CID hash verification (matches ethers.keccak256 on the frontend)
 try:
+    # pyrefly: ignore [missing-import]
     from eth_hash.auto import keccak as keccak256_fn
 except ImportError:
     try:
+        # pyrefly: ignore [missing-import]
         from Crypto.Hash import keccak
 
         def keccak256_fn(data: bytes) -> bytes:  # type: ignore
@@ -35,7 +37,7 @@ from app.services.report_service import report_service
 from app.services.reputation_service import reputation_service
 from app.api.v1.auth import get_current_wallet
 from app.api.v1.rbac import require_moderator_role
-from app.core.config import settings
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel as PydanticBaseModel
 
 from app.schemas.report import (
@@ -419,6 +421,7 @@ async def finalize_report(
             supporters=body.supporters or [],
             challengers=body.challengers or [],
             malicious_set=set(body.malicious_wallets or []),
+            moderator=wallet,
         )
         await db.commit()
 
@@ -647,6 +650,9 @@ async def commit_to_blockchain(
         tx_hash=commit_data.tx_hash,
         block_number=commit_data.block_number,
     )
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update blockchain info")
 
     return ReportResponse(
         id=str(updated.id),

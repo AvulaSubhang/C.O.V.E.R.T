@@ -285,7 +285,10 @@ export function MySubmissions() {
       // Sync updated balance
       if (signerAddr) {
         const updated = await protocolService.getUserState(signerAddr);
-        useCovBalanceStore.getState().setBalance(signerAddr, parseFloat(updated.covBalance));
+        const onChainBal = parseFloat(updated.covBalance);
+        if (onChainBal > 0) {
+          useCovBalanceStore.getState().setBalance(signerAddr, onChainBal);
+        }
       }
 
       // Refresh reports to reflect the new appeal state

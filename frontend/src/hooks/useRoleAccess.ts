@@ -87,7 +87,12 @@ export function useRoleAccess() {
               await protocolService.connect();
               const userState = await protocolService.getUserState(walletState.address);
               const onChainBal = parseFloat(userState.covBalance);
-              useCovBalanceStore.getState().setBalance(walletState.address, onChainBal);
+              // Only sync from on-chain if the balance is positive.
+              // In dev mode, users may not have called claimWelcome() so on-chain
+              // balance is 0 — don't overwrite the local dev grant (INITIAL_BALANCE).
+              if (onChainBal > 0) {
+                useCovBalanceStore.getState().setBalance(walletState.address, onChainBal);
+              }
             } catch {
               // Contract not reachable in this dev session — store balance stays as-is
             }

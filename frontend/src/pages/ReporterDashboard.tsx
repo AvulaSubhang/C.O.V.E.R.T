@@ -35,10 +35,40 @@ import { API_BASE } from '@/config';
 function PublicReportCard({ report, isConnected }: { report: Report; isConnected: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [actioning, setActioning] = useState<'support' | 'challenge' | null>(null);
-  // Local optimistic counts (initialise from report if we add those fields later)
   const [localSupports, setLocalSupports] = useState(0);
   const [localChallenges, setLocalChallenges] = useState(0);
   const [hasActed, setHasActed] = useState<'support' | 'challenge' | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (report.commitmentHash && import.meta.env.VITE_COVERT_PROTOCOL_ADDRESS) {
+      protocolService.getReportIdByHash(report.commitmentHash).then(id => {
+        if (cancelled || id === null) return;
+        Promise.all([
+          protocolService.getSupporterCount(id),
+          protocolService.getChallengerCount(id),
+          isConnected ? protocolService.getSupporters(id) : Promise.resolve([]),
+          isConnected ? protocolService.getChallengers(id) : Promise.resolve([])
+        ]).then(([supports, challenges, supportersList, challengersList]) => {
+          if (cancelled) return;
+          setLocalSupports(supports);
+          setLocalChallenges(challenges);
+          
+          if (isConnected) {
+            const userAddr = protocolService.getSignerAddress()?.then(addr => {
+              if (!addr) return;
+              if (supportersList.map(a => a.toLowerCase()).includes(addr.toLowerCase())) {
+                setHasActed('support');
+              } else if (challengersList.map(a => a.toLowerCase()).includes(addr.toLowerCase())) {
+                setHasActed('challenge');
+              }
+            });
+          }
+        }).catch(console.error);
+      }).catch(console.error);
+    }
+    return () => { cancelled = true; };
+  }, [report.commitmentHash, isConnected]);
 
   const categoryLabel: Record<string, string> = {
     corruption: 'Corruption',
@@ -93,8 +123,12 @@ function PublicReportCard({ report, isConnected }: { report: Report; isConnected
       const signerAddr = await protocolService.getSignerAddress();
       if (signerAddr) {
         const userState = await protocolService.getUserState(signerAddr);
-        const covBalance = parseFloat(userState.covBalance);
-        useCovBalanceStore.getState().setBalance(signerAddr, covBalance);
+        const onChainBal = parseFloat(userState.covBalance);
+        // Only sync from on-chain if positive — don't overwrite local dev grant with 0
+        if (onChainBal > 0) {
+          useCovBalanceStore.getState().setBalance(signerAddr, onChainBal);
+        }
+        const covBalance = useCovBalanceStore.getState().getBalance(signerAddr);
 
         if (covBalance < requiredCov) {
           toast.error(
@@ -104,31 +138,50 @@ function PublicReportCard({ report, isConnected }: { report: Report; isConnected
         }
       }
 
-      // Find the on-chain report ID from the commitment hash
-      const reportId = await protocolService.getReportIdByHash(report.commitmentHash);
-      if (reportId === null) {
-        toast.error('Report not found on-chain — cannot stake');
-        return;
-      }
-
-      const reasonHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`${action}:${report.commitmentHash}:${Date.now()}`)
-      );
-      if (action === 'support') {
-        await protocolService.supportReport(reportId, reasonHash);
-        setLocalSupports(s => s + 1);
-        toast.success('Support staked on-chain (1 COV)');
+      if (!import.meta.env.VITE_COVERT_PROTOCOL_ADDRESS) {
+        // Dev mode fallback
+        await new Promise(r => setTimeout(r, 1000));
+        if (action === 'support') {
+          setLocalSupports(s => s + 1);
+          toast.success('Support simulated (Dev Mode)');
+        } else {
+          setLocalChallenges(c => c + 1);
+          toast.success('Challenge simulated (Dev Mode)');
+        }
+        setHasActed(action);
       } else {
-        await protocolService.challengeReport(reportId, reasonHash);
-        setLocalChallenges(c => c + 1);
-        toast.success('Challenge staked on-chain (3 COV)');
+        // Find the on-chain report ID from the commitment hash
+        const reportId = await protocolService.getReportIdByHash(report.commitmentHash);
+        if (reportId === null) {
+          toast.error('Report not found on-chain — cannot stake');
+          return;
+        }
+
+        const reasonHash = ethers.keccak256(
+          ethers.toUtf8Bytes(`${action}:${report.commitmentHash}:${Date.now()}`)
+        );
+        if (action === 'support') {
+          await protocolService.supportReport(reportId, reasonHash);
+          setLocalSupports(s => s + 1);
+          toast.success('Support staked on-chain (1 COV)');
+        } else {
+          await protocolService.challengeReport(reportId, reasonHash);
+          setLocalChallenges(c => c + 1);
+          toast.success('Challenge staked on-chain (3 COV)');
+        }
+        setHasActed(action);
       }
-      setHasActed(action);
 
       // Sync updated balance after successful stake
       if (signerAddr) {
         const updated = await protocolService.getUserState(signerAddr);
-        useCovBalanceStore.getState().setBalance(signerAddr, parseFloat(updated.covBalance));
+        const onChainBal = parseFloat(updated.covBalance);
+        if (onChainBal > 0) {
+          useCovBalanceStore.getState().setBalance(signerAddr, onChainBal);
+        } else {
+          // Fallback: manually deduct the stake from the local store if on-chain isn't setup
+          useCovBalanceStore.getState().setBalance(signerAddr, useCovBalanceStore.getState().getBalance(signerAddr) - requiredCov);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Transaction failed';
@@ -248,8 +301,8 @@ function PublicReportCard({ report, isConnected }: { report: Report; isConnected
             </div>
           )}
 
-          {/* Support / Challenge — only for logged-in users */}
-          {isConnected && (
+          {/* Support / Challenge — only for logged-in users and undecided reports */}
+          {isConnected && !isDecided && (
             <div className="flex items-center gap-2 pt-1 border-t border-neutral-800/50">
               <p className="text-xs text-neutral-600 mr-1">Community:</p>
               <button

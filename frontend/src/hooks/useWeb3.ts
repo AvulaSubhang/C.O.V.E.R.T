@@ -307,8 +307,12 @@ export function useWeb3(): UseWeb3Return {
         // New wallets have 0 COV; without this they get InsufficientCredits on createReport.
         if (walletState.address) {
           const userState = await protocolService.getUserState(walletState.address);
-          // Always sync on-chain balance to the store so the profile UI shows the real value
-          useCovBalanceStore.getState().setBalance(walletState.address, parseFloat(userState.covBalance));
+          // Sync on-chain balance to the store, but only if positive — don't overwrite
+          // the local dev grant (INITIAL_BALANCE) with 0 when welcome hasn't been claimed
+          const onChainBal = parseFloat(userState.covBalance);
+          if (onChainBal > 0) {
+            useCovBalanceStore.getState().setBalance(walletState.address, onChainBal);
+          }
 
           if (!userState.welcomeClaimed) {
             await protocolService.claimWelcome();
