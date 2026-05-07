@@ -82,10 +82,16 @@ class Settings(BaseSettings):
         else:
             origins = list(v)
         # Always include the production frontend
-        vercel = "https://covert-chi.vercel.app"
+        vercel = "https://frontend-xi-ecru-10.vercel.app"
         if vercel not in origins:
             origins.append(vercel)
         return origins
+
+    @validator("DATABASE_URL", pre=True)
+    def parse_database_url(cls, v):
+        if isinstance(v, str) and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
 
     class Config:
         env_file = ".env"
