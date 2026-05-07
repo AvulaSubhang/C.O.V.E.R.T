@@ -80,9 +80,12 @@ services:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://covert_user:covert_password@postgres:5432/covert_db
       - REDIS_URL=redis://redis:6379/0
-      - IPFS_API_URL=/dns4/ipfs/tcp/5001
-      - IPFS_GATEWAY_URL=http://ipfs:8080
-      - RPC_URL=http://anvil:8545
+      - IPFS_API_URL=https://api.pinata.cloud/pinning/pinFileToIPFS
+      - IPFS_GATEWAY_URL=https://gateway.pinata.cloud
+      - PINATA_API_KEY=9fcc6f3c8188c2e741b3
+      - PINATA_SECRET_KEY=03984567a6849a7e820618c612a7e77607023c936896cb572732834f5a66f968
+      - RPC_URL=https://sepolia.base.org
+      - CHAIN_ID=84532
     depends_on:
       - postgres
       - redis

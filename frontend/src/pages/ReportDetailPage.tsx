@@ -100,13 +100,7 @@ function DeadMansSwitchPanel({ reportId }: { reportId: string }) {
   const [showSetup, setShowSetup] = useState(false);
 
   const walletAddress = walletState.address ?? '';
-  const nullifier = walletAddress
-    ? '0x' + Array.from(new TextEncoder().encode(walletAddress))
-        .reduce((acc, b) => acc * 256n + BigInt(b), 0n)
-        .toString(16)
-        .slice(0, 64)
-        .padStart(64, '0')
-    : '';
+  const nullifier = walletAddress;
 
   const fetchDms = useCallback(async () => {
     if (!reportId) return;

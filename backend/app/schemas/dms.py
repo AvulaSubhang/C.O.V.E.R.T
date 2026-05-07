@@ -14,7 +14,7 @@ from datetime import datetime
 class DMSCreate(BaseModel):
     """Request to create a Dead Man's Switch"""
     report_id: str = Field(..., description="Report UUID")
-    reporter_nullifier: str = Field(..., min_length=66, max_length=66)
+    reporter_nullifier: str = Field(..., min_length=42, max_length=66)
     reporter_commitment: Optional[str] = Field(None, min_length=66, max_length=66)
     trigger_type: str = Field(default="time_based", pattern="^(time_based|activity_based|manual|emergency)$")
     trigger_date: datetime = Field(..., description="Trigger date/time")
@@ -55,7 +55,7 @@ class DMSResponse(BaseModel):
 class DMSCheckInRequest(BaseModel):
     """Request to check in to DMS"""
     dms_id: str = Field(..., description="DMS UUID")
-    reporter_nullifier: str = Field(..., min_length=66, max_length=66)
+    reporter_nullifier: str = Field(..., min_length=42, max_length=66)
     zkp_proof: Optional[Dict[str, Any]] = None
     proof_of_life: Optional[str] = Field(None, max_length=200)
     extend_trigger_date: Optional[datetime] = None
@@ -77,7 +77,7 @@ class DMSCheckInResponse(BaseModel):
 class DMSReleaseRequest(BaseModel):
     """Manual release trigger request"""
     dms_id: str = Field(..., description="DMS UUID")
-    reporter_nullifier: str = Field(..., min_length=66, max_length=66)
+    reporter_nullifier: str = Field(..., min_length=42, max_length=66)
     zkp_proof: Optional[Dict[str, Any]] = None
     release_reason: Optional[str] = Field(None, max_length=500)
 
@@ -98,7 +98,7 @@ class DMSReleaseResponse(BaseModel):
 class DMSCancelRequest(BaseModel):
     """Request to cancel DMS"""
     dms_id: str = Field(..., description="DMS UUID")
-    reporter_nullifier: str = Field(..., min_length=66, max_length=66)
+    reporter_nullifier: str = Field(..., min_length=42, max_length=66)
     zkp_proof: Optional[Dict[str, Any]] = None
     cancellation_reason: Optional[str] = Field(None, max_length=500)
 
