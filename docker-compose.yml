@@ -68,6 +68,29 @@ services:
     networks:
       - covert-network
 
+  # Backend FastAPI Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: covert-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://covert_user:covert_password@postgres:5432/covert_db
+      - REDIS_URL=redis://redis:6379/0
+      - IPFS_API_URL=/dns4/ipfs/tcp/5001
+      - IPFS_GATEWAY_URL=http://ipfs:8080
+      - RPC_URL=http://anvil:8545
+    depends_on:
+      - postgres
+      - redis
+      - ipfs
+      - anvil
+    networks:
+      - covert-network
+
 volumes:
   postgres_data:
   redis_data:

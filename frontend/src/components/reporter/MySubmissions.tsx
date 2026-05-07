@@ -20,8 +20,7 @@ import { useReportStore, type ReportStatus, type ReportCategory, type Report } f
 import { ReportCard } from './ReportCard';
 import { mapApiReports } from '@/utils/reportMapper';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { useReviewDecisionStore } from '@/stores/reviewDecisionStore';
-import { useCovBalanceStore, STAKE_AMOUNTS, PARTIAL_RETURN_RATE, FINAL_SETTLEMENT_RATE, type VisibilityKey } from '@/stores/covBalanceStore';
+import { useCovBalanceStore, STAKE_AMOUNTS, type VisibilityKey } from '@/stores/covBalanceStore';
 import { protocolService } from '@/services/protocol';
 import { STAKES } from '@/types/protocol';
 import { API_BASE } from '@/config';
@@ -29,15 +28,11 @@ import { API_BASE } from '@/config';
 const STATUS_OPTIONS: { value: ReportStatus | ''; label: string }[] = [
   { value: '', label: 'All Status' },
   { value: 'pending_review', label: 'Pending Review' },
-  { value: 'needs_evidence', label: 'Needs Evidence' },
-  { value: 'rejected_by_reviewer', label: 'Rejected by Reviewer' },
   { value: 'pending_moderation', label: 'Under Moderation' },
   { value: 'appealed', label: 'Appealed' },
   { value: 'verified', label: 'Verified' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'pending', label: 'Pending (legacy)' },
-  { value: 'under_review', label: 'Under Review (legacy)' },
-  { value: 'disputed', label: 'Disputed (legacy)' },
+  { value: 'disputed', label: 'Disputed' },
 ];
 
 const CATEGORY_OPTIONS: { value: ReportCategory | ''; label: string }[] = [
@@ -50,71 +45,7 @@ const CATEGORY_OPTIONS: { value: ReportCategory | ''; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-/**
- * Check freshly-loaded reports for stake return milestones and apply COV credits.
- *
- * Called after every report fetch (initial load + manual refresh).
- * Idempotent: each action is guarded by a persisted flag in reviewDecisionStore
- * so double-loading never double-credits the wallet.
- */
-function applyStakeReturns(freshReports: Report[], walletAddress: string) {
-  const covStore = useCovBalanceStore.getState();
-  const decStore = useReviewDecisionStore.getState();
-  const addr = walletAddress.toLowerCase();
-  let repRefreshNeeded = false;
 
-  for (const report of freshReports) {
-    const stakeAmount = STAKE_AMOUNTS[report.visibility as VisibilityKey] ?? 0;
-
-    // ── 25% partial return when reviewer passes the report to moderation ──
-    // Triggered when status moves to 'pending_moderation' (or legacy 'under_review').
-    const reviewerPassedStatuses: ReportStatus[] = ['pending_moderation', 'under_review'];
-    if (
-      reviewerPassedStatuses.includes(report.status) &&
-      !decStore.isPartialReturnApplied(report.id, addr)
-    ) {
-      const partialReturn = Math.floor(stakeAmount * PARTIAL_RETURN_RATE);
-      covStore.addBalance(addr, partialReturn);
-      decStore.markPartialReturnApplied(report.id, addr);
-      toast.success(`${partialReturn} COV returned — reviewer passed!`, {
-        id: `pr-${report.id}`,
-      });
-    }
-
-    // ── 75% final settlement when moderator has finalized the report ──
-    // Only triggered after moderator's final decision (verified or rejected).
-    // 'disputed' is kept for legacy backward compat.
-    const finalizedStatuses: ReportStatus[] = ['verified', 'rejected', 'disputed'];
-    if (
-      finalizedStatuses.includes(report.status) &&
-      !decStore.isFinalSettlementApplied(report.id, addr)
-    ) {
-      // rejected = FALSE_OR_MANIPULATED → stake slashed → 0 returned
-      // verified / disputed → remaining 75% returned to reporter
-      const finalReturn =
-        report.status === 'rejected'
-          ? 0
-          : Math.floor(stakeAmount * FINAL_SETTLEMENT_RATE);
-
-      if (finalReturn > 0) covStore.addBalance(addr, finalReturn);
-      decStore.markFinalSettlementApplied(report.id, addr);
-      repRefreshNeeded = true;
-
-      const label =
-        report.status === 'verified' ? 'Verified' :
-        report.status === 'rejected' ? 'Rejected' : 'Disputed';
-      const msg = finalReturn > 0
-        ? `${label} — ${finalReturn} COV returned to your balance`
-        : `${label} — stake slashed (false/manipulated report)`;
-      toast(msg, { id: `fs-${report.id}`, duration: 5000 });
-    }
-  }
-
-  // Trigger rep re-fetch in useRoleAccess so ProfileButton shows updated score
-  if (repRefreshNeeded) {
-    window.dispatchEvent(new CustomEvent('covert:rep-refresh'));
-  }
-}
 
 export function MySubmissions() {
   const navigate = useNavigate();
@@ -188,14 +119,11 @@ export function MySubmissions() {
             })
           );
           setReports(enriched);
-          if (walletAddress) applyStakeReturns(enriched, walletAddress);
         } catch {
           setReports(freshReports);
-          if (walletAddress) applyStakeReturns(freshReports, walletAddress);
         }
       } else {
         setReports(freshReports);
-        if (walletAddress) applyStakeReturns(freshReports, walletAddress);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reports');
@@ -246,7 +174,7 @@ export function MySubmissions() {
     const response = await fetch(`${API_BASE}/api/v1/reports/${id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        ...(localStorage.getItem('token') && localStorage.getItem('token') !== 'null' ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` } : {}),
         ...(walletAddress ? { 'X-Wallet-Address': walletAddress } : {}),
       },
     });
@@ -298,7 +226,7 @@ export function MySubmissions() {
       const walletAddress = localStorage.getItem('wallet_address');
       const response = await fetch(`${API_BASE}/api/v1/reports`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          ...(token && token !== 'null' ? { 'Authorization': `Bearer ${token}` } : {}),
           ...(walletAddress ? { 'X-Wallet-Address': walletAddress } : {}),
         },
       });
@@ -310,7 +238,6 @@ export function MySubmissions() {
       const data = await response.json();
       const freshReports = mapApiReports(data.items || []);
       setReports(freshReports);
-      if (walletAddress) applyStakeReturns(freshReports, walletAddress);
       toast.success('Reports refreshed');
     } catch (err) {
       toast.error('Failed to refresh reports');
@@ -392,7 +319,8 @@ export function MySubmissions() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            ...(token && token !== 'null' ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(walletAddress ? { 'X-Wallet-Address': walletAddress } : {}),
           },
         }

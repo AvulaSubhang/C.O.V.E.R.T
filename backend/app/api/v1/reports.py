@@ -34,7 +34,7 @@ from app.models.report import Report, ReportStatus, ReportVisibility
 from app.services.report_service import report_service
 from app.services.reputation_service import reputation_service
 from app.api.v1.auth import get_current_wallet
-from app.api.v1.rbac import require_reviewer_role, require_moderator_role
+from app.api.v1.rbac import require_moderator_role
 from app.core.config import settings
 from pydantic import BaseModel as PydanticBaseModel
 
@@ -249,14 +249,14 @@ async def list_all_reports(
     category: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
-    wallet: str = Depends(require_reviewer_role),
+    wallet: str = Depends(require_moderator_role),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List ALL reports regardless of ownership.
 
-    Used by reviewers and moderators to see the full report queue.
-    Requires REVIEWER_ROLE or MODERATOR_ROLE on-chain.
+    Used by moderators to see the full report queue.
+    Requires MODERATOR_ROLE on-chain.
     """
     reports, total = await report_service.get_all_reports(
         db=db,
@@ -282,6 +282,7 @@ async def list_all_reports(
             risk_level=r.risk_level.value if r.risk_level and hasattr(r.risk_level, 'value') else r.risk_level,
             submitted_at=r.submission_timestamp,
             reviewed_at=None,
+            reporter=r.reporter_nullifier or r.burner_address,
             review_decision=r.review_decision,
             final_label=getattr(r, 'final_label', None),
         )
@@ -334,7 +335,7 @@ async def get_report_by_cid_hash(
 async def update_report_status_by_hash(
     cid_hash: str,
     update: ReportStatusUpdate,
-    wallet: str = Depends(require_reviewer_role),
+    wallet: str = Depends(require_moderator_role),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -529,13 +530,13 @@ async def store_evidence_key(
 @router.get("/by-hash/{cid_hash}/evidence-key")
 async def get_evidence_key(
     cid_hash: str,
-    wallet: str = Depends(require_reviewer_role),
+    wallet: str = Depends(require_moderator_role),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Return the AES-256 evidence key for a report.
 
-    Requires REVIEWER_ROLE or MODERATOR_ROLE on-chain.
+    Requires MODERATOR_ROLE on-chain.
     Returns 404 if no key has been stored (PRIVATE report or old submission).
     """
     normalized = cid_hash.lower() if cid_hash.startswith("0x") else f"0x{cid_hash.lower()}"

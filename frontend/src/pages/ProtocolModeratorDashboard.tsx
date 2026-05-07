@@ -5,7 +5,6 @@
  *   Queue        – priority-sorted report queue with sort/filter controls
  *   Appeals      – dedicated view for reports with active appeals
  *   Flagged      – wallets with active strikes (from backend)
- *   Reviewers    – high-rep reviewer candidates (from backend)
  *   Log          – finalized reports (audit log)
  *
  * Per-report features:
@@ -15,6 +14,7 @@
  *   • Moderator notes (saved to backend)
  *   • Confirm-before-finalize modal (settlement + rep effects summary)
  *   • Batch finalization (checkbox-select multiple pending reports)
+ *   • Department forwarding on CORROBORATED reports
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -35,12 +35,14 @@ import {
 } from '@/types/protocol';
 import toast from 'react-hot-toast';
 import { protocolService } from '@/services/protocol';
+import { useReviewDecisionStore } from '@/stores/reviewDecisionStore';
+import { useCovBalanceStore, STAKE_AMOUNTS, FULL_RETURN_RATE, PARTIAL_RETURN_RATE, SLASH_RATE, type VisibilityKey } from '@/stores/covBalanceStore';
 import { formatEther } from 'ethers';
 import { API_BASE } from '@/config';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'queue' | 'appeals' | 'flagged' | 'reviewers' | 'log';
+type Tab = 'queue' | 'appeals' | 'flagged' | 'log';
 type SortKey = 'oldest' | 'newest' | 'most_cov' | 'most_disputes';
 type FilterKey = 'pending' | 'review_passed' | 'needs_evidence' | 'reject_spam' | 'appealed' | 'all' | 'finalized';
 
@@ -1258,7 +1260,42 @@ export function ProtocolModeratorDashboard() {
                 );
             }
 
+            // Dev-mode COV token refund — 3-tier: 100% / 50% / 0%
+            if (import.meta.env.VITE_DEV_MODE === 'true' && !fromBlockchain) {
+                const decStore = useReviewDecisionStore.getState();
+                const reportIdStr = String(selectedReport.id);
+                const reporterLower = selectedReport.reporter.toLowerCase();
+                if (!decStore.isFinalSettlementApplied(reportIdStr, reporterLower)) {
+                    const v = (selectedReport as any).visibility?.toString().toLowerCase() as VisibilityKey;
+                    const stake = STAKE_AMOUNTS[v] || 0;
+                    const rate = finalLabel === FinalLabel.CORROBORATED ? FULL_RETURN_RATE
+                        : finalLabel === FinalLabel.FALSE_OR_MANIPULATED ? SLASH_RATE
+                        : PARTIAL_RETURN_RATE; // DISPUTED / NEEDS_EVIDENCE → 50%
+                    const refund = Math.floor(stake * rate);
+                    if (refund > 0) useCovBalanceStore.getState().addBalance(reporterLower, refund);
+                    decStore.markFinalSettlementApplied(reportIdStr, reporterLower);
+                }
+            }
+
             toast.success(`Report #${selectedReport.id} finalized as "${FINAL_LABEL_NAMES[finalLabel]}"`);
+
+            // Department forwarding notification for CORROBORATED reports
+            if (finalLabel === FinalLabel.CORROBORATED && selectedReport.contentHash) {
+                // Fetch routing info from backend after a brief delay to let route_report() run
+                setTimeout(async () => {
+                    try {
+                        const routeRes = await fetch(`${API_BASE}/api/v1/routing/report/${selectedReport.id}`);
+                        if (routeRes.ok) {
+                            const routes: { dept_name: string }[] = await routeRes.json();
+                            if (routes.length > 0) {
+                                const depts = routes.map(r => r.dept_name).join(', ');
+                                toast.success(`📋 Report forwarded to: ${depts}`, { duration: 6000 });
+                            }
+                        }
+                    } catch { /* non-critical */ }
+                }, 1500);
+            }
+
             window.dispatchEvent(new CustomEvent('covert:reports-updated'));
             window.dispatchEvent(new CustomEvent('covert:rep-refresh'));
             setSelectedReport(null);
@@ -1307,6 +1344,24 @@ export function ProtocolModeratorDashboard() {
                             reportForSync.reviewDecision,
                         );
                     }
+
+                    // Dev-mode COV token refund for batch — 3-tier: 100% / 50% / 0%
+                    if (import.meta.env.VITE_DEV_MODE === 'true' && !fromBlockchain && reportForSync) {
+                        const decStore = useReviewDecisionStore.getState();
+                        const reportIdStr = String(id);
+                        const reporterLower = reportForSync.reporter.toLowerCase();
+                        if (!decStore.isFinalSettlementApplied(reportIdStr, reporterLower)) {
+                            const v = (reportForSync as any).visibility?.toString().toLowerCase() as VisibilityKey;
+                            const stake = STAKE_AMOUNTS[v] || 0;
+                            const rate = batchLabel === FinalLabel.CORROBORATED ? FULL_RETURN_RATE
+                                : batchLabel === FinalLabel.FALSE_OR_MANIPULATED ? SLASH_RATE
+                                : PARTIAL_RETURN_RATE;
+                            const refund = Math.floor(stake * rate);
+                            if (refund > 0) useCovBalanceStore.getState().addBalance(reporterLower, refund);
+                            decStore.markFinalSettlementApplied(reportIdStr, reporterLower);
+                        }
+                    }
+
                     succeeded++;
                 } catch { /* skip individual failures */ }
             }
@@ -1336,7 +1391,8 @@ export function ProtocolModeratorDashboard() {
                 list = list.filter(r =>
                     r.dbStatus === 'pending_moderation' ||
                     r.dbStatus === 'appealed' ||
-                    r.dbStatus === 'under_review'  // legacy
+                    r.dbStatus === 'under_review' || // legacy
+                    r.dbStatus === 'pending_review' // Added for dev bypassing
                 );
             } else {
                 list = list.filter(r => r.finalLabel === FinalLabel.UNREVIEWED);
@@ -1364,7 +1420,7 @@ export function ProtocolModeratorDashboard() {
     const appealsQueue = reviewableReports.filter(r => r.hasAppeal && r.finalLabel === FinalLabel.UNREVIEWED);
     const pendingCount = fromBlockchain
         ? reviewableReports.filter(r => r.finalLabel === FinalLabel.UNREVIEWED && r.reviewDecision !== ReviewerDecision.NONE).length
-        : reviewableReports.filter(r => r.dbStatus === 'pending_moderation' || r.dbStatus === 'appealed' || r.dbStatus === 'under_review').length;
+        : reviewableReports.filter(r => r.dbStatus === 'pending_moderation' || r.dbStatus === 'appealed' || r.dbStatus === 'under_review' || r.dbStatus === 'pending_review').length;
     const appealCount = appealsQueue.length;
     const finalizedCount = reviewableReports.filter(r => r.finalLabel !== FinalLabel.UNREVIEWED).length;
     const totalCov = reviewableReports.reduce((sum, r) => sum + (r.finalLabel === FinalLabel.UNREVIEWED ? totalCovAtRisk(r) : 0), 0);
@@ -1373,7 +1429,6 @@ export function ProtocolModeratorDashboard() {
         { key: 'queue', label: 'Queue', badge: pendingCount },
         { key: 'appeals', label: 'Appeals', badge: appealCount },
         { key: 'flagged', label: 'Flagged' },
-        { key: 'reviewers', label: 'Reviewers' },
         { key: 'log', label: 'Audit Log', badge: finalizedCount },
     ];
 
@@ -1460,7 +1515,7 @@ export function ProtocolModeratorDashboard() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <AdjustmentsHorizontalIcon className="w-4 h-4 text-neutral-500" />
                             <span className="text-xs text-neutral-500 font-medium">Filter:</span>
-                            {(['pending', 'review_passed', 'needs_evidence', 'reject_spam', 'appealed', 'all', 'finalized'] as FilterKey[]).map(fk => (
+                            {(['pending', 'appealed', 'all', 'finalized'] as FilterKey[]).map(fk => (
                                 <button
                                     key={fk}
                                     onClick={() => setFilterKey(fk)}
@@ -1471,9 +1526,6 @@ export function ProtocolModeratorDashboard() {
                                     }`}
                                 >
                                     {fk === 'pending' ? 'Pending' :
-                                     fk === 'review_passed' ? 'Passed' :
-                                     fk === 'needs_evidence' ? 'Needs Ev.' :
-                                     fk === 'reject_spam' ? 'Spam' :
                                      fk === 'appealed' ? 'Appealed' :
                                      fk === 'finalized' ? 'Finalized' : 'All'}
                                 </button>
@@ -1582,8 +1634,7 @@ export function ProtocolModeratorDashboard() {
             {/* ── Flagged Tab ── */}
             {activeTab === 'flagged' && <FlaggedTab onDeepDive={setDeepDiveWallet} />}
 
-            {/* ── Reviewers Tab ── */}
-            {activeTab === 'reviewers' && <ReviewersTab onDeepDive={setDeepDiveWallet} />}
+
 
             {/* ── Audit Log Tab ── */}
             {activeTab === 'log' && (

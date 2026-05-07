@@ -25,7 +25,7 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
 # ===== Backend =====
-backend/__pycache__/
+**/__pycache__/
 backend/*.py[cod]
 backend/*$py.class
 backend/.env

@@ -38,8 +38,9 @@ import {
     STAKES,
 } from '@/types/protocol';
 import toast from 'react-hot-toast';
-import { protocolService } from '@/services/protocol';
 import { useReviewDecisionStore } from '@/stores/reviewDecisionStore';
+import { useCovBalanceStore, STAKE_AMOUNTS, PARTIAL_RETURN_RATE, type VisibilityKey } from '@/stores/covBalanceStore';
+import { protocolService } from '@/services/protocol';
 import { EvidenceViewer } from '@/components/EvidenceViewer';
 import { API_BASE } from '@/config';
 
@@ -1040,6 +1041,20 @@ export function ReviewerDashboard() {
                 }).catch(() => { /* non-critical */ });
             }
 
+            // Dev-mode COV token partial return
+            if (import.meta.env.VITE_DEV_MODE === 'true' && !fromBlockchain && decision === ReviewerDecision.REVIEW_PASSED && targetReport) {
+                const decStore = useReviewDecisionStore.getState();
+                const reportIdStr = String(reportId);
+                const reporterLower = targetReport.reporter.toLowerCase();
+                if (!decStore.isPartialReturnApplied(reportIdStr, reporterLower)) {
+                    const v = (targetReport as any).visibility?.toString().toLowerCase() as VisibilityKey;
+                    const stake = STAKE_AMOUNTS[v] || 0;
+                    const refund = Math.floor(stake * PARTIAL_RETURN_RATE);
+                    if (refund > 0) useCovBalanceStore.getState().addBalance(reporterLower, refund);
+                    decStore.markPartialReturnApplied(reportIdStr, reporterLower);
+                }
+            }
+
             const newStreak = updateStreak(walletAddress);
             setStreak(newStreak);
             const msg = `Decision set: ${REVIEWER_DECISION_NAMES[decision]}`;
@@ -1115,6 +1130,21 @@ export function ReviewerDashboard() {
                         }),
                     }).catch(() => {});
                 }
+
+                // Dev-mode COV token partial return for batch
+                if (import.meta.env.VITE_DEV_MODE === 'true' && !fromBlockchain && batchDecision === ReviewerDecision.REVIEW_PASSED && target) {
+                    const decStore = useReviewDecisionStore.getState();
+                    const reportIdStr = String(id);
+                    const reporterLower = target.reporter.toLowerCase();
+                    if (!decStore.isPartialReturnApplied(reportIdStr, reporterLower)) {
+                        const v = (target as any).visibility?.toString().toLowerCase() as VisibilityKey;
+                        const stake = STAKE_AMOUNTS[v] || 0;
+                        const refund = Math.floor(stake * PARTIAL_RETURN_RATE);
+                        if (refund > 0) useCovBalanceStore.getState().addBalance(reporterLower, refund);
+                        decStore.markPartialReturnApplied(reportIdStr, reporterLower);
+                    }
+                }
+
                 done++;
             } catch {
                 toast.error(`Failed on report #${id}`);

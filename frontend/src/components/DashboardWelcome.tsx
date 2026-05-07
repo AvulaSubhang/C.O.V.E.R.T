@@ -59,45 +59,15 @@ const ROLE_CONTENT: Record<PlatformRole, { headline: string; subline: string; ca
       },
     ],
   },
-  reviewer: {
-    headline: 'Welcome, Reviewer',
-    subline: 'You hold a Reviewer Badge. You can evaluate reports submitted by others.',
-    cards: [
-      {
-        icon: <MagnifyingGlassIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Review Reports',
-        description:
-          'Your dashboard shows all reports awaiting a reviewer decision. Read the encrypted summary, then mark each as Credible, Needs More Info, or Not Credible.',
-      },
-      {
-        icon: <DocumentPlusIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Submit Your Own Reports',
-        description:
-          'Reviewers can also submit reports. However, your own submissions will not appear in your review queue — other reviewers handle those.',
-      },
-      {
-        icon: <CurrencyDollarIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Earning COV Tokens',
-        description:
-          'Each completed review earns you COV tokens. Reviews that align with the final moderator decision earn a bonus. Consistent quality builds your reputation tier.',
-      },
-      {
-        icon: <StarIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Review Requirements',
-        description:
-          'Every report needs at least 1 reviewer assessment before it can proceed to final moderation. Your vote is essential to the pipeline.',
-      },
-    ],
-  },
   moderator: {
     headline: 'Welcome, Protocol Moderator',
-    subline: 'You hold a Moderator Badge. You issue the final verdict on reports.',
+    subline: 'You hold a Moderator Badge. You review and finalize reports directly.',
     cards: [
       {
         icon: <ShieldCheckIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Final Moderation',
+        title: 'Review & Finalize Reports',
         description:
-          'After at least 1 reviewer has assessed a report, it enters your queue. You apply the final label: Verified, Rejected, or Escalated. At least 2 moderators must agree before a decision is recorded on-chain.',
+          'All submitted reports appear in your queue. You review the evidence and apply the final label: Corroborated, Disputed, Needs Evidence, or False/Manipulated.',
       },
       {
         icon: <DocumentPlusIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
@@ -107,15 +77,15 @@ const ROLE_CONTENT: Record<PlatformRole, { headline: string; subline: string; ca
       },
       {
         icon: <CurrencyDollarIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'COV Token Rewards',
+        title: 'COV Token Settlements',
         description:
-          'Finalizing a report earns COV tokens. Decisions that match the on-chain consensus earn a quality bonus. Tokens accumulate in your wallet and can be staked for governance.',
+          'Your finalization decision settles all staked COV tokens. Corroborated reports return 100% to the reporter. False reports are slashed. Disputed reports return 50%.',
       },
       {
         icon: <StarIcon className="h-5 w-5" style={{ color: '#E84B1A' }} />,
-        title: 'Consensus Requirement',
+        title: 'Department Forwarding',
         description:
-          'A minimum of 2 distinct moderators must finalize a report before the on-chain decision is written. This prevents single-point bias and ensures protocol integrity.',
+          'Corroborated reports are automatically forwarded to the relevant government department for action. You can track forwarding status in the Audit Log.',
       },
     ],
   },

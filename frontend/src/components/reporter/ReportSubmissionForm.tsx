@@ -233,11 +233,12 @@ export function ReportSubmissionForm() {
       const cidHash = ethers.keccak256(ethers.toUtf8Bytes(ipfsResult.cid));
       const visibilityInt = draft.visibility === 'private' ? 0 : draft.visibility === 'moderated' ? 1 : 2;
 
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/v1/reports`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token && token !== 'null' ? { 'Authorization': `Bearer ${token}` } : {}),
           ...(walletState.address ? { 'X-Wallet-Address': walletState.address } : {}),
         },
         body: JSON.stringify({
@@ -300,11 +301,12 @@ export function ReportSubmissionForm() {
       // Step 5: Update backend with the transaction hash
       if (txResult.success && txResult.transactionHash) {
         try {
+          const commitToken = localStorage.getItem('token');
           await fetch(`${API_BASE}/api/v1/reports/${result.id}/commit`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              ...(commitToken && commitToken !== 'null' ? { 'Authorization': `Bearer ${commitToken}` } : {}),
               ...(walletState.address ? { 'X-Wallet-Address': walletState.address } : {}),
             },
             body: JSON.stringify({

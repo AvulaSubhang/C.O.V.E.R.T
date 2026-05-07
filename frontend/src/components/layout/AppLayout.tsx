@@ -31,7 +31,7 @@ export function AppLayout() {
   const resetCov = useCovBalanceStore((s) => s.resetAll);
 
   const handleDevReset = async () => {
-    if (!window.confirm('Reset test environment?\n\n• All COV balances → 30 (welcome grant)\n• Reputation scores → role defaults\n  (users: 0 | reviewers: 50 | moderators: 90)')) return;
+    if (!window.confirm('Reset test environment?\n\n• All COV balances → 30 (welcome grant)\n• Reputation scores → role defaults\n  (users: 0 | moderators: 90)')) return;
     setResetting(true);
     try {
       const res = await fetch(`${API_BASE}/api/v1/reputation/dev-reset`, { method: 'POST' });

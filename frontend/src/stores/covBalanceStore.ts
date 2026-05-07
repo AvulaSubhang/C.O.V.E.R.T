@@ -3,6 +3,11 @@
  *
  * Tracks per-wallet COV balances in dev mode, persisted to localStorage.
  * Stake amounts match the platform guide values.
+ *
+ * Simplified moderator-only flow:
+ *   - CORROBORATED   → 100% refund
+ *   - DISPUTED / NEEDS_EVIDENCE → 50% refund
+ *   - FALSE_OR_MANIPULATED → 0% refund (slashed)
  */
 
 import { create } from 'zustand';
@@ -14,10 +19,15 @@ export const STAKE_AMOUNTS = {
   public: 10,
 } as const;
 
-/** Fraction of stake returned early when review majority votes REVIEW_PASSED */
-export const PARTIAL_RETURN_RATE = 0.25;
-/** Fraction of stake settled at moderation finalization (CORROBORATED / NEEDS_EVIDENCE / DISPUTED) */
-export const FINAL_SETTLEMENT_RATE = 0.75;
+/** Full refund rate when moderator finalizes as CORROBORATED */
+export const FULL_RETURN_RATE = 1.0;
+/** Partial refund rate for DISPUTED / NEEDS_EVIDENCE */
+export const PARTIAL_RETURN_RATE = 0.5;
+/** Zero refund for FALSE_OR_MANIPULATED (slashed) */
+export const SLASH_RATE = 0.0;
+
+// Keep legacy export name for backward compat with any remaining imports
+export const FINAL_SETTLEMENT_RATE = FULL_RETURN_RATE;
 
 export type VisibilityKey = keyof typeof STAKE_AMOUNTS;
 

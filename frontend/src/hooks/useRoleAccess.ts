@@ -9,7 +9,6 @@ import { API_BASE } from '@/config';
 
 interface RoleAccessState {
   loading: boolean;
-  isReviewer: boolean;
   isModerator: boolean;
   covBalance: string;
   lockedBalance: string;
@@ -20,7 +19,6 @@ interface RoleAccessState {
 
 const INITIAL: RoleAccessState = {
   loading: true,
-  isReviewer: false,
   isModerator: false,
   covBalance: '0',
   lockedBalance: '0',
@@ -99,7 +97,6 @@ export function useRoleAccess() {
             initialLoadDone.current = true;
             setState({
               loading: false,
-              isReviewer: role === 'reviewer',
               isModerator: role === 'moderator',
               covBalance: '0', // overridden by covBalanceLive from store below
               lockedBalance: '0',
@@ -136,9 +133,6 @@ export function useRoleAccess() {
           }
         }
 
-        const isReviewer = userState.badges.some(
-          (badge) => badge.type === BadgeType.REVIEWER_BADGE && badge.active
-        );
         const isModerator = userState.badges.some(
           (badge) => badge.type === BadgeType.MODERATOR_BADGE && badge.active
         );
@@ -147,7 +141,6 @@ export function useRoleAccess() {
           initialLoadDone.current = true;
           setState({
             loading: false,
-            isReviewer,
             isModerator,
             covBalance: userState.covBalance,
             lockedBalance: userState.lockedBalance,
@@ -163,7 +156,6 @@ export function useRoleAccess() {
             initialLoadDone.current = true;
             setState({
               loading: false,
-              isReviewer: role === 'reviewer',
               isModerator: role === 'moderator',
               covBalance: '0', // overridden by covBalanceLive from store below
               lockedBalance: '0',
