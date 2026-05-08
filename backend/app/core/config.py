@@ -12,12 +12,12 @@ class Settings(BaseSettings):
 
     # ===== Application =====
     APP_NAME: str = "C.O.V.E.R.T"
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    ENVIRONMENT: str = "production"
+    DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
 
     # ===== Security =====
-    SECRET_KEY: str = "CHANGE_THIS_IN_PRODUCTION"
+    SECRET_KEY: str = "c0v3rt-s3cr3t-pr0duct10n-k3y-49-b4s3-s3p0l14"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 

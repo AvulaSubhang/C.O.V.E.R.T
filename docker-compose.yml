@@ -77,7 +77,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENVIRONMENT=development
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - SECRET_KEY=c0v3rt-s3cr3t-pr0duct10n-k3y-49-b4s3-s3p0l14
       - DATABASE_URL=postgresql+asyncpg://covert_user:covert_password@postgres:5432/covert_db
       - REDIS_URL=redis://redis:6379/0
       - IPFS_API_URL=https://api.pinata.cloud/pinning/pinFileToIPFS
@@ -86,11 +88,15 @@ services:
       - PINATA_SECRET_KEY=03984567a6849a7e820618c612a7e77607023c936896cb572732834f5a66f968
       - RPC_URL=https://sepolia.base.org
       - CHAIN_ID=84532
+      - COVERT_PROTOCOL_ADDRESS=0x1C90D50Be7661Dc48106527F1657b8D8F12b5F60
+      - COMMITMENT_REGISTRY_ADDRESS=0x6da91E0248E1177A472C7Ec905493f4ddaF9c0F3
+      - DAILY_ANCHOR_ADDRESS=0x7E10Bc04DbC2A48e6a8F54Dc488Aa6da6755d223
+      - COV_CREDITS_ADDRESS=0x7b96Ea73892baE3a3c875b2701F2D1A3031F3159
+      - COVERT_BADGES_ADDRESS=0x171656f685c21EE56c5db5a264503B93B714a95a
+      - AUTOMATION_PRIVATE_KEY=65acdc503b715e493f19ed323f3ef3e7f337fc6688fb18b26ed1f5fa1f3756ee
     depends_on:
       - postgres
       - redis
-      - ipfs
-      - anvil
     networks:
       - covert-network
 

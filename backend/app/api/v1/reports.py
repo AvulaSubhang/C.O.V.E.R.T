@@ -533,14 +533,17 @@ async def store_evidence_key(
 @router.get("/by-hash/{cid_hash}/evidence-key")
 async def get_evidence_key(
     cid_hash: str,
-    wallet: str = Depends(require_moderator_role),
+    wallet: str = Depends(get_current_wallet),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Return the AES-256 evidence key for a report.
 
-    Requires MODERATOR_ROLE on-chain.
-    Returns 404 if no key has been stored (PRIVATE report or old submission).
+    Access rules:
+    - PUBLIC reports: any authenticated user
+    - MODERATED reports: requires MODERATOR_ROLE on-chain
+    - PRIVATE reports: reporter only
+    Returns 404 if no key has been stored.
     """
     normalized = cid_hash.lower() if cid_hash.startswith("0x") else f"0x{cid_hash.lower()}"
     result = await db.execute(select(Report).where(Report.commitment_hash == normalized))
@@ -549,9 +552,29 @@ async def get_evidence_key(
         raise HTTPException(status_code=404, detail="Report not found")
     if not report.evidence_key:
         raise HTTPException(status_code=404, detail="No evidence key available for this report")
+
+    vis = report.visibility.value if hasattr(report.visibility, 'value') else str(report.visibility)
+    if vis == "private":
+        if (report.reporter_nullifier or "").lower() != wallet.lower():
+            raise HTTPException(status_code=403, detail="Only the reporter can access private evidence")
+    elif vis == "moderated":
+        # Check moderator role for moderated reports
+        try:
+            from app.services.blockchain_service import blockchain_service
+            if not blockchain_service.w3:
+                await blockchain_service.initialize()
+            has_mod = await blockchain_service.has_moderator_role(wallet)
+            is_reporter = (report.reporter_nullifier or "").lower() == wallet.lower()
+            if not has_mod and not is_reporter:
+                raise HTTPException(status_code=403, detail="MODERATOR_ROLE required for moderated evidence")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # If blockchain check fails, allow access (graceful degradation)
+
     return {
         "key_hex": report.evidence_key,
-        "visibility": report.visibility.value if hasattr(report.visibility, 'value') else str(report.visibility),
+        "visibility": vis,
     }
 
 
