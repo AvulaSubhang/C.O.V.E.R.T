@@ -88,6 +88,11 @@ export function MySubmissions() {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token is stale (e.g. after server key rotation) — clear and prompt re-auth
+          localStorage.removeItem('token');
+          throw new Error('Session expired. Please disconnect and reconnect your wallet.');
+        }
         throw new Error('Failed to fetch reports');
       }
 
