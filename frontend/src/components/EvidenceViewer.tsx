@@ -194,6 +194,22 @@ export function EvidenceViewer({ contentHash, cid, visibility }: EvidenceViewerP
         );
     }
 
+    // Dev-mode reports: fake CID that won't resolve on real gateways
+    const isDevCid = cid.startsWith('bafyDEV') || cid.startsWith('QmDEV');
+    if (isDevCid) {
+        return (
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-4 flex items-center gap-3">
+                <DocumentIcon className="h-5 w-5 text-neutral-500 shrink-0" />
+                <div>
+                    <p className="text-sm font-medium text-neutral-300">Evidence stored locally</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                        This report was submitted in development mode. Evidence files are available on the local IPFS node.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     if (state === 'idle') {
         return (
             <button
