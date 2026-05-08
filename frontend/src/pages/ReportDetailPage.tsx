@@ -448,9 +448,13 @@ function AppealPanel({ report }: { report: Report }) {
       await protocolService.appeal(reportId, appealReasonHash);
 
       // Sync to backend so the moderator dashboard picks up the appeal
+      const token = localStorage.getItem('token');
       fetch(`${API_BASE}/api/v1/reports/by-hash/${report.commitmentHash}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({ status: report.status }),
       }).catch(() => {});
 

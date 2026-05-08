@@ -1053,11 +1053,19 @@ export function ProtocolModeratorDashboard() {
             if (!usedBlockchain) {
                 setFromBlockchain(false);
                 // Fall back to backend DB — shows all reports from all wallets
+                const token = localStorage.getItem('token');
                 const res = await fetch(`${API_BASE}/api/v1/reports/all?limit=100`, {
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                         ...(moderatorAddress ? { 'X-Wallet-Address': moderatorAddress } : {}),
                     },
                 });
+                
+                if (res.status === 401) {
+                    localStorage.removeItem('token');
+                    throw new Error('Session expired. Please disconnect and reconnect your wallet to view reports.');
+                }
+                
                 if (res.ok) {
                     const data = await res.json();
                     const DB_REVIEW_DECISION: Record<string, ReviewerDecision> = {
@@ -1208,10 +1216,12 @@ export function ProtocolModeratorDashboard() {
             [ReviewerDecision.REJECT_SPAM]: 'REJECT_SPAM',
         };
 
+        const token = localStorage.getItem('token');
         fetch(`${API_BASE}/api/v1/reports/by-hash/${contentHash}/finalize`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
                 ...(moderatorAddress ? { 'X-Wallet-Address': moderatorAddress } : {}),
             },
             body: JSON.stringify({
